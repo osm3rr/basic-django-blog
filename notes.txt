@@ -1,0 +1,270 @@
+0- review of what has been done so far
+1- folder to project
+    mkdir blog
+
+2- create a virtual environment .venv
+    python -m venv .venv
+
+3- activate the .venv
+    .venv\Scripts\Activate.ps1
+
+4- install django in the .venv
+    python -m pip install django
+
+5- create a new django project
+    django-admin startproject django_project .
+
+6- create the necesary apps 
+    python manage.py startapp blog
+
+7- execute a migration set up 
+    python manage.py migrate
+
+8- update django_project/settings.py
+    INSTALLED_APPS = [
+        "blog.apps.BlogConfig",
+        ]
+
+9- run the local server
+    python manage.py runserver
+
+10- we’ll create our database model for blog posts
+    from django.db import models
+    # allows us to reference an object by its URL template name
+    from django.urls import reverse
+
+    # https://docs.djangoproject.com/en/4.1/topics/db/models/
+    class Post(models.Model):
+        title = models.CharField(max_length=200)
+        author = models.ForeignKey(
+        "auth.User",
+        on_delete=models.CASCADE,
+        )
+        body = models.TextField()
+
+        def __str__(self):
+            return self.title
+
+        def get_absolute_url(self):
+            return reverse("post_detail", kwargs={"pk": self.pk})
+
+11- with database model created we need to create a new migration record
+    python manage.py makemigrations blog
+    python manage.py migrate
+
+12- We need a way to access our data / Enter the Django admin!
+    # create a superuser account
+    python manage.py createsuperuser
+
+13- update blog/admin.py
+    from django.contrib import admin
+    from .models import Post
+    
+    admin.site.register(Post)
+
+14- run the server
+    python manage.py runserver
+
+15- navigate over to the admin at 127.0.0.1:8000/admin
+    - Log in with your new superuser account
+    - Let’s add two blog posts so we have 
+    some sample data to work with
+
+16- we need to create the necessary views, URLs, and
+templates
+
+17- create a new file called urls.py within the blog app
+    # blog/urls.py
+        from django.urls import path
+        from .views import BlogListView
+
+        urlpatterns = [
+            path("", BlogListView.as_view(), name="home"),
+            ]
+
+18- update our django_project/urls.py file
+    # django_project/urls.py
+    from django.contrib import admin
+    from django.urls import path, include # new
+    
+    urlpatterns = [
+        path("admin/", admin.site.urls),
+        path("", include("blog.urls")), # new
+        ]    
+
+19- For views We’re going to use class-based views
+    # blog/views.py
+    from django.views.generic import ListView
+    from .models import Post
+
+    class BlogListView(ListView):
+        model = Post
+        template_name = "home.html"
+
+20-  templates
+we can inherit from other templates to keep our code clean
+
+21- creating our new templates directory
+    mkdir templates
+
+22- update django_project/settings.py 
+# django_project/settings.py
+TEMPLATES = [
+    {
+    ...
+    "DIRS": [BASE_DIR / "templates"],
+    ...
+    },
+]
+
+23- update the base.html template
+<!-- templates/base.html -->
+<html>
+    <head>
+        <title>Django blog</title>
+    </head>
+    <body>
+        <header>
+            <h1><a href="{% url 'home' %}">Django blog</a></h1>
+        </header>
+        <div>
+            {% block content %}
+            {% endblock content %}
+        </div>
+    </body>
+</html>
+
+24- code for home.html
+<!-- templates/home.html -->
+{% extends "base.html" %}
+
+{% block content %}
+{% for post in post_list %}
+    <div class="post-entry">
+        <h2><a href="">{{ post.title }}</a></h2>
+        <p>{{ post.body }}</p>
+    </div>
+{% endfor %}
+{% endblock content %}
+
+25- run the server
+python manage.py runserver
+
+26- static file: CSS / JS / images
+
+27- create a new directory called static
+    mkdir static
+
+28- we need to tell Django to look for this
+ new folder when loading static files
+# django_project/settings.py
+STATIC_URL = "/static/"
+
+29- tells Django to look within our newly-created
+static folder for static files
+# django_project/settings.py
+STATIC_URL = "/static/"
+STATICFILES_DIRS = [BASE_DIR / "static"]
+# new
+
+30- create a css directory within static
+    mkdir static/css
+
+31- reate a new file within this directory
+called static/css/base.css
+/* static/css/base.css */
+header h1 a {
+color: red;
+}
+
+32- add the static files to our templates with link 
+<!-- templates/base.html -->
+{% load static %}
+<html>
+    <head>
+    <title>Django blog</title>
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+</head>
+...
+
+33- Start up the server
+    python manage.py runserver
+
+34- add a custom font, insert the following
+between <head></head>
+<html>
+    <head>
+    <title>Django blog</title>
+
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Alkatra&display=swap" rel="stylesheet">
+
+        <link href="{% static 'css/base.css' %}" rel="stylesheet">
+
+    </head>
+
+35- Then update our css file
+    body {
+        font-family: 'Alkatra', cursive;
+        font-size: 18px;
+    }
+
+    header h1 a {
+        font-family: 'Alkatra', cursive;
+        font-size: 36px;
+        color: blue;
+    }
+
+36- Refresh the homepage
+    python manage.py runserver
+
+37- Individual Blog Pages
+We need to create a new view, url, and template
+    # blog/views.py
+    from django.views.generic import ListView, DetailView # new
+    from .models import Post
+    
+    class BlogListView(ListView):
+        model = Post
+        template_name = "home.html"
+    
+    class BlogDetailView(DetailView): # new
+        model = Post
+        template_name = "post_detail.html"
+
+38- create a new template file called templates/post_detail.html
+<!-- templates/post_detail.html -->
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="post-entry">
+        <h2>{{ post.title }}</h2>
+        <p>{{ post.body }}</p>
+    </div>
+{% endblock content %}
+
+39- Adding a new URL path for our view
+# blog/urls.py
+from django.urls import path
+from .views import BlogListView, BlogDetailView # new
+
+urlpatterns = [
+    path("post/<int:pk>/", BlogDetailView.as_view(), name="post_detail"), # new
+    path("", BlogListView.as_view(), name="home"),
+    ]
+
+40- update the link on the homepage so we can directly access
+individual blog posts from there
+<!-- templates/home.html -->
+{% extends "base.html" %}
+
+{% block content %}
+    {% for post in post_list %}
+        <div class="post-entry">
+            <h2><a href="{% url 'post_detail' post.pk %}">{{ post.title }}</a></h2>
+            <p>{{ post.body }}</p>
+        </div>
+    {% endfor %}
+{% endblock content %}
+
